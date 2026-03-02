@@ -2,6 +2,7 @@
 
 #include <depthai/modelzoo/Zoo.hpp>
 #include <depthai/nn_archive/NNArchive.hpp>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -48,9 +49,17 @@ class Detection : public BaseNode {
         detectionNode = pipeline->create<dai::node::DetectionNetwork>();
         ph = std::make_unique<param_handlers::NNParamHandler>(node, daiNodeName, deviceName, rsCompat, socket);
         ph->declareParams(detectionNode);
-        dai::NNModelDescription description;
-        description.model = ph->getParam<std::string>("i_nn_model");
-        detectionNode->build(camNode.getUnderlyingNode(), description);
+        auto nnModel = ph->getParam<std::string>("i_nn_model");
+        if(std::filesystem::exists(nnModel)) {
+            // Local file: load as NNArchive (.json config, .tar.xz, .tar.gz, or .blob)
+            dai::NNArchive archive(nnModel);
+            detectionNode->build(camNode.getUnderlyingNode(), archive);
+            RCLCPP_INFO(node->get_logger(), "Loaded local NN model: %s", nnModel.c_str());
+        } else {
+            dai::NNModelDescription description;
+            description.model = nnModel;
+            detectionNode->build(camNode.getUnderlyingNode(), description);
+        }
 
         RCLCPP_DEBUG(getLogger(), "Node %s created", daiNodeName.c_str());
         setInOut(pipeline);
