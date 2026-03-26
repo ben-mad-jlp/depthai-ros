@@ -20,7 +20,7 @@ void RGBDParamHandler::declareParams(std::shared_ptr<dai::node::RGBD> rgbd, dai:
     if(threadNum > 1) {
         rgbd->useCPUMT(threadNum);
     }
-    rgbd->runSyncOnHost(declareAndLogParam<bool>("i_run_sync_on_host", true));
+    declareAndLogParam<bool>("i_run_sync_on_host", true);
     declareAndLogParam<bool>("i_run_align_on_host", true);
 }
 

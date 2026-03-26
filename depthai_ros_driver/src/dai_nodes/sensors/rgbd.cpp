@@ -38,7 +38,7 @@ RGBD::RGBD(const std::string& daiNodeName,
     }
     auto color = camNode.getUnderlyingNode();
     auto platform = device->getPlatform();
-    rgbdNode->runSyncOnHost(ph->getParam<bool>("i_run_sync_on_host"));
+    ph->getParam<bool>("i_run_sync_on_host");
     auto fps = ph->getOtherNodeParam<float>(camNode.getName(), ParamNames::FPS);
 
     auto* out = color->requestOutput(std::pair<int, int>(ph->getOtherNodeParam<int>(camNode.getName(), ParamNames::WIDTH),
