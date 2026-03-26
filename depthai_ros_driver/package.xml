@@ -29,6 +29,7 @@
   <depend>image_transport_plugins</depend>
   <depend>image_pipeline</depend>
   <depend>depthai</depend>
+  <depend>depthai_vendor</depend>
   <depend>depthai_bridge</depend>
   <depend>depthai_descriptions</depend>
   <depend>depthai_ros_msgs</depend>
