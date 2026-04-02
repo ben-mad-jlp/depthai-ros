@@ -227,6 +227,7 @@ void TFPublisher::convertModelName() {
                                                         {"OAK-D-PRO-POE", "OAK-D-S2-POE"},
                                                         {"OAK-D-S2-POE", "OAK-D-S2-POE"},
                                                         {"OAK-D-POE", "OAK-D-POE"},
+                                                        {"OAK-1-LITE", "OAK-1"},
                                                         {"OAK-D-LITE", "OAK-D-PRO"},
                                                         {"OAK-D-S2", "OAK-D-PRO"},
                                                         {"OAK-D-PRO-W", "OAK-D-PRO"},
