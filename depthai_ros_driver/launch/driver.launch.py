@@ -189,6 +189,7 @@ def launch_setup(context, *args, **kwargs):
             ),
             launch_arguments={
                 "namespace": namespace,
+                "name": name,
                 "tf_prefix": tf_prefix,
                 "camera_model": camera_model,
                 "base_frame": name,
