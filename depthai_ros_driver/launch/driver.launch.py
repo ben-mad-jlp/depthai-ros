@@ -73,6 +73,7 @@ def launch_setup(context, *args, **kwargs):
     pointcloud_enable = LaunchConfiguration("pointcloud.enable", default="false")
     namespace = LaunchConfiguration("namespace", default="").perform(context)
     name = LaunchConfiguration("name").perform(context)
+    tf_prefix = LaunchConfiguration("tf_prefix", default=name).perform(context)
 
     # If RealSense compatibility is enabled, we need to override some parameters, topics and node names
     parameter_overrides = {}
@@ -153,9 +154,9 @@ def launch_setup(context, *args, **kwargs):
         params = {
             "driver": {
                 "i_publish_tf_from_calibration": True,
-                "i_tf_tf_prefix": name,
+                "i_tf_tf_prefix": tf_prefix,
                 "i_tf_camera_model": cam_model,
-                "i_tf_base_frame": name,
+                "i_tf_base_frame": tf_prefix,
                 "i_tf_parent_frame": parent_frame,
                 "i_tf_cam_pos_x": cam_pos_x.perform(context),
                 "i_tf_cam_pos_y": cam_pos_y.perform(context),
@@ -188,7 +189,7 @@ def launch_setup(context, *args, **kwargs):
             ),
             launch_arguments={
                 "namespace": namespace,
-                "tf_prefix": name,
+                "tf_prefix": tf_prefix,
                 "camera_model": camera_model,
                 "base_frame": name,
                 "parent_frame": parent_frame,
