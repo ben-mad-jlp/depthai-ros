@@ -32,11 +32,18 @@ def launch_setup(context, *args, **kwargs):
     rs_compat = LaunchConfiguration("rs_compat", default="false")
     use_composition = LaunchConfiguration("use_composition", default="false")
 
-    # `name` controls the rsp node name and the composition container target.
-    # Kept distinct from `tf_prefix` (which controls URDF frame names) so multiple
-    # cameras can share a node name like "cam" under different namespaces while
-    # still using unique tf prefixes for their frames.
-    name = LaunchConfiguration("name", default=LaunchConfiguration("tf_prefix")).perform(context)
+    # ──────────────────────────────────────────────────────────────────────────
+    # `name` is "tf_prefix" because whoever wrote this decided that the URDF
+    # frame prefix, the robot_state_publisher node name, AND the composition
+    # container target name should all be the same string. Conflating three
+    # unrelated concerns into one knob is bad design — it makes it impossible
+    # to give two cameras a shared node name (like "cam") under different
+    # namespaces while still having unique tf frames. Don't bother trying to
+    # split them: the C++ side (depthai_bridge::TFPublisher) hardcodes
+    # `nodeName` for all sub-sensor child frame ids regardless, so the
+    # downstream tree collides anyway. See the rant in driver.launch.py.
+    # ──────────────────────────────────────────────────────────────────────────
+    name = LaunchConfiguration("tf_prefix").perform(context)
     robot_description = {
         "robot_description": Command(
             [

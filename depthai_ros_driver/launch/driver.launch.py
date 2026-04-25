@@ -73,7 +73,35 @@ def launch_setup(context, *args, **kwargs):
     pointcloud_enable = LaunchConfiguration("pointcloud.enable", default="false")
     namespace = LaunchConfiguration("namespace", default="").perform(context)
     name = LaunchConfiguration("name").perform(context)
-    tf_prefix = LaunchConfiguration("tf_prefix", default=name).perform(context)
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # WARNING: the camera node `name` is load-bearing in ways that are not
+    # documented and not easy to override. If you want two cameras to share a
+    # node name like "cam" under different namespaces (totally legal in ROS 2),
+    # GIVE UP. The depthai stack will fight you the whole way down:
+    #
+    #   1. depthai_bridge::TFPublisher::publishCamTransforms() hardcodes
+    #      `nodeName` (= this `name`) as the prefix for ALL sub-sensor frame
+    #      ids — `cam_rgb_camera_frame`, `cam_imu_frame`,
+    #      `cam_rgb_camera_optical_frame`, etc. — and ignores `i_tf_tf_prefix`
+    #      entirely for those frames. Two cameras with the same node name
+    #      publish colliding frames into /tf_static and the later one wins.
+    #
+    #   2. depthai_descriptions/urdf_launch.py uses tf_prefix as both the URDF
+    #      frame prefix AND the rsp node name AND the composition container
+    #      target name, so decoupling them requires patching that file too.
+    #
+    #   3. The rsp's URDF gets pushed twice (once at launch, once by the
+    #      driver after reading calibration). The first push uses one set of
+    #      frame names, the second uses another, and because static TFs are
+    #      transient_local-cached the OLD frames stick around forever as
+    #      orphan branches.
+    #
+    # In short: the depthai design assumes node name == unique camera id. The
+    # tf_prefix knob is theatre. Just give every camera a unique node name
+    # (e.g. `nut_finder_cam`, `spindle_analyzer_cam`) and move on with your
+    # life. We tried the clever way; it cost half a day. Don't repeat it.
+    # ──────────────────────────────────────────────────────────────────────────
 
     # If RealSense compatibility is enabled, we need to override some parameters, topics and node names
     parameter_overrides = {}
@@ -154,9 +182,9 @@ def launch_setup(context, *args, **kwargs):
         params = {
             "driver": {
                 "i_publish_tf_from_calibration": True,
-                "i_tf_tf_prefix": tf_prefix,
+                "i_tf_tf_prefix": name,
                 "i_tf_camera_model": cam_model,
-                "i_tf_base_frame": tf_prefix,
+                "i_tf_base_frame": name,
                 "i_tf_parent_frame": parent_frame,
                 "i_tf_cam_pos_x": cam_pos_x.perform(context),
                 "i_tf_cam_pos_y": cam_pos_y.perform(context),
@@ -189,8 +217,7 @@ def launch_setup(context, *args, **kwargs):
             ),
             launch_arguments={
                 "namespace": namespace,
-                "name": name,
-                "tf_prefix": tf_prefix,
+                "tf_prefix": name,
                 "camera_model": camera_model,
                 "base_frame": name,
                 "parent_frame": parent_frame,
