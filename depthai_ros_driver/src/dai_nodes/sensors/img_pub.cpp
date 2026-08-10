@@ -51,7 +51,15 @@ void ImagePublisher::setup(std::shared_ptr<dai::Device> device, const utils::Img
         infoPub =
             node->create_publisher<sensor_msgs::msg::CameraInfo>(pubConfig.topicName + pubConfig.infoSuffix + "/camera_info", rclcpp::QoS(10), pubOptions);
     } else {
-        imgPubIT = image_transport::create_camera_publisher(node.get(), pubConfig.topicName + pubConfig.topicSuffix);
+        // BEST_EFFORT, KEEP_LAST(5). The default is rmw_qos_profile_default — RELIABLE —
+        // on a multi-megabyte 1080p stream. A reliable writer must retain samples until
+        // every matched reader ACKs, so a full history blocks publish(); and publish()
+        // runs synchronously inside the XLink queue callback, which means blocking there
+        // stops the host draining frames from the device. Any subscriber could therefore
+        // throttle the camera itself, a remote one worst of all. Measured on hardware
+        // 2026-08-07: one web_video_server held both elevator cameras at ~3 Hz.
+        imgPubIT = image_transport::create_camera_publisher(
+            node.get(), pubConfig.topicName + pubConfig.topicSuffix, rmw_qos_profile_sensor_data);
     }
     if(!synced) {
         if(encConfig.enabled) {
@@ -212,11 +220,24 @@ void ImagePublisher::publish(std::shared_ptr<Image> img) {
         }
         infoPub->publish(std::move(img->info));
     } else {
-        if(ipcEnabled && (!pubConfig.lazyPub || detectSubscription(imgPub, infoPub))) {
-            imgPub->publish(std::move(img->image));
-            infoPub->publish(std::move(img->info));
-        } else {
-            if(!pubConfig.lazyPub || imgPubIT.getNumSubscribers() > 0) imgPubIT.publish(*img->image, *img->info);
+        // One publisher serves both in-process and remote consumers. The UniquePtr
+        // overload moves the image into image_transport, which hands ownership to the
+        // first transport advertising supportsUniquePtrPub() — RawPublisher — whose
+        // publish() forwards to rclcpp's intra-process path. Every other transport
+        // (compressed, zstd, ...) still receives it by reference and publishes normally,
+        // each gated on its own subscriber count. So this is zero-copy for composed
+        // nodes AND a working /compressed topic for viewers, from a single call.
+        //
+        // Dereferencing the pointers here instead would select the const-ref overload
+        // and copy the whole frame every cycle, which is what this used to do.
+        //
+        // The lazy check is skipped when intra-process comms are on: getNumSubscribers()
+        // reports only the transports' own counts, and with IPC a publish is a pointer
+        // move, so laziness here would buy nothing while risking a silent topic. The
+        // per-transport laziness inside image_transport is unaffected, so nothing
+        // encodes JPEG unless something is actually subscribed to /compressed.
+        if(!pubConfig.lazyPub || ipcEnabled || imgPubIT.getNumSubscribers() > 0) {
+            imgPubIT.publish(std::move(img->image), std::move(img->info));
         }
     }
 }
@@ -241,11 +262,6 @@ void ImagePublisher::publish(const std::shared_ptr<dai::ADatatype>& data) {
     }
 }
 
-bool ImagePublisher::detectSubscription(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& pub,
-                                        const rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr& infoPub) {
-    return (pub->get_subscription_count() > 0 || pub->get_intra_process_subscription_count() > 0 || infoPub->get_subscription_count() > 0
-            || infoPub->get_intra_process_subscription_count() > 0);
-}
 }  // namespace sensor_helpers
 }  // namespace dai_nodes
 }  // namespace depthai_ros_driver

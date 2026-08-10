@@ -90,8 +90,6 @@ class ImagePublisher {
     std::shared_ptr<dai::node::VideoEncoder> createEncoder(std::shared_ptr<dai::Pipeline> pipeline, const utils::VideoEncoderConfig& encoderConfig);
 
    private:
-    bool detectSubscription(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& pub,
-                            const rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr& infoPub);
     std::shared_ptr<rclcpp::Node> node;
     utils::VideoEncoderConfig encConfig;
     utils::ImgPublisherConfig pubConfig;
@@ -101,7 +99,9 @@ class ImagePublisher {
     std::shared_ptr<dai::node::XLinkOut> xout;
     std::shared_ptr<dai::node::VideoEncoder> encoder;
     dai::Node::Output* out;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr imgPub;
+    /// Only the publishCompressed path uses this. The uncompressed path publishes
+    /// camera_info through imgPubIT, which is a CameraPublisher and owns its own
+    /// CameraInfo publisher.
     rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr infoPub;
     rclcpp::Publisher<ffmpeg_image_transport_msgs::msg::FFMPEGPacket>::SharedPtr ffmpegPub;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressedImgPub;

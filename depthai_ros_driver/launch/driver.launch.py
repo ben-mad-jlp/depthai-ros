@@ -253,6 +253,11 @@ def launch_setup(context, *args, **kwargs):
                         parameter_overrides,
                     ],
                     remappings=[(f"{name}/rgbd/points", points_topic_name)],
+                    # Composed consumers receive the image by pointer instead of a
+                    # serialized copy. Requires the ImagePublisher UniquePtr publish
+                    # path; the old code dereferenced a never-assigned publisher here
+                    # and would segfault the moment this was switched on.
+                    extra_arguments=[{"use_intra_process_comms": True}],
                 )
             ],
             arguments=["--ros-args", "--log-level", log_level],
