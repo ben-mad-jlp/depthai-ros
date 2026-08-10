@@ -48,6 +48,10 @@ def launch_setup(context, *args, **kwargs):
     if context.environment.get("DEPTHAI_DEBUG") == "1":
         log_level = "debug"
 
+    container_executable = LaunchConfiguration(
+        "container_executable", default="component_container"
+    ).perform(context)
+
     urdf_launch_dir = os.path.join(
         get_package_share_directory("depthai_descriptions"), "launch"
     )
@@ -236,7 +240,7 @@ def launch_setup(context, *args, **kwargs):
             name=f"{name}_container",
             namespace=namespace,
             package="rclcpp_components",
-            executable="component_container",
+            executable=container_executable,
             composable_node_descriptions=[
                 ComposableNode(
                     package="depthai_ros_driver",
@@ -275,6 +279,17 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "params_file",
             default_value=os.path.join(depthai_prefix, "config", "driver.yaml"),
+        ),
+        DeclareLaunchArgument(
+            "container_executable",
+            default_value="component_container",
+            description="rclcpp_components container executable. component_container "
+                        "(SingleThreadedExecutor, the default), component_container_mt "
+                        "(MultiThreadedExecutor, accepts a thread_num param), "
+                        "component_container_isolated (one executor per component), or "
+                        "component_container_events_cbg. Use _mt when the container hosts nodes "
+                        "with long callbacks alongside the driver -- on a single-threaded "
+                        "executor one slow subscriber starves every other node in the process.",
         ),
         DeclareLaunchArgument("use_rviz", default_value="false"),
         DeclareLaunchArgument(
